@@ -12,6 +12,7 @@ type Block struct {
 	PrevBlockHeaderHash []byte
 	HeaderHash          []byte
 	Root                []byte
+	Nonce               int
 }
 
 func NewBlock(prevBlockHeaderHash []byte, root []byte) *Block {
@@ -20,8 +21,14 @@ func NewBlock(prevBlockHeaderHash []byte, root []byte) *Block {
 		PrevBlockHeaderHash: prevBlockHeaderHash,
 		Root:                root,
 		HeaderHash:          []byte{},
+		Nonce:               0,
 	}
-	block.SetHash()
+	//block.SetHash()
+	pow := NewPoW(block)
+	nonce, hash := pow.Run()
+
+	block.HeaderHash = hash
+	block.Nonce = nonce
 	return block
 }
 
