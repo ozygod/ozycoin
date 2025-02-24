@@ -14,24 +14,8 @@ type Block struct {
 	PrevBlockHeaderHash []byte
 	HeaderHash          []byte
 	Root                []byte
+	Transactions        []*Transaction
 	Nonce               int
-}
-
-func NewBlock(prevBlockHeaderHash []byte, root []byte) *Block {
-	block := &Block{
-		Timestamp:           time.Now().Unix(),
-		PrevBlockHeaderHash: prevBlockHeaderHash,
-		Root:                root,
-		HeaderHash:          []byte{},
-		Nonce:               0,
-	}
-	//block.SetHash()
-	pow := NewPoW(block)
-	nonce, hash := pow.Run()
-
-	block.HeaderHash = hash
-	block.Nonce = nonce
-	return block
 }
 
 func (b *Block) SetHash() {
@@ -53,6 +37,17 @@ func (b *Block) Serialize() []byte {
 	return result.Bytes()
 }
 
+func (b *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
+	for _, tx := range b.Transactions {
+		txHashes = append(txHashes, tx.ID)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
+}
+
 func DeserializeBlock(data []byte) *Block {
 	var block Block
 
@@ -64,6 +59,23 @@ func DeserializeBlock(data []byte) *Block {
 	return &block
 }
 
-func NewGenesisBlock() *Block {
-	return NewBlock([]byte{}, []byte("Genesis Block"))
+func NewBlock(prevBlockHeaderHash []byte, transactions []*Transaction) *Block {
+	block := &Block{
+		Timestamp:           time.Now().Unix(),
+		PrevBlockHeaderHash: prevBlockHeaderHash,
+		Transactions:        transactions,
+		HeaderHash:          []byte{},
+		Nonce:               0,
+	}
+	//block.SetHash()
+	pow := NewPoW(block)
+	nonce, hash := pow.Run()
+
+	block.HeaderHash = hash
+	block.Nonce = nonce
+	return block
+}
+
+func NewGenesisBlock(coinBase *Transaction) *Block {
+	return NewBlock([]byte{}, []*Transaction{coinBase})
 }

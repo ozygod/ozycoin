@@ -5,13 +5,9 @@ import (
 	"strconv"
 )
 
-func (cli *CLI) addBlock(data string) {
-	cli.bc.AddBlock([]byte(data))
-	fmt.Println("Successfully added block")
-}
-
 func (cli *CLI) printChain() {
-	iterator := cli.bc.Iterator()
+	bc := NewBlockChain()
+	iterator := bc.Iterator()
 
 	for {
 		block := iterator.Next()
@@ -19,6 +15,7 @@ func (cli *CLI) printChain() {
 		fmt.Printf("Prev. hash: %x\n", block.PrevBlockHeaderHash)
 		fmt.Printf("Data: %s\n", block.Root)
 		fmt.Printf("Hash: %x\n", block.HeaderHash)
+		fmt.Printf("Transactions: %s\n", block.Transactions)
 		pow := NewPoW(block)
 		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Verify()))
 		fmt.Println()
