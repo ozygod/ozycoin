@@ -1,22 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
+	"go.etcd.io/bbolt"
+	"log"
 )
 
 func main() {
 	bc := NewBlockChain()
+	defer func(db *bbolt.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Panic(err)
+		}
+	}(bc.db)
 
-	bc.AddBlock([]byte("Send 1 BTC to Ivan"))
-	bc.AddBlock([]byte("Send 2 more BTC to Ivan"))
-
-	for _, block := range bc.Blocks {
-		fmt.Printf("Prev. hash: %x\n", block.PrevBlockHeaderHash)
-		fmt.Printf("Data: %s\n", block.Root)
-		fmt.Printf("Hash: %x\n", block.HeaderHash)
-		pow := NewPoW(block)
-		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Verify()))
-		fmt.Println()
-	}
+	cli := CLI{bc}
+	cli.Run()
 }
