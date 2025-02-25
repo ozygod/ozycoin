@@ -115,7 +115,7 @@ func (cli *CLI) getBalance(address string) {
 		}
 	}(bc.db)
 
-	UTXOs := bc.FindUXTO(address)
+	UTXOs := bc.FindUTXO(address)
 	balance := 0
 	for _, utxo := range UTXOs {
 		balance += utxo.Value

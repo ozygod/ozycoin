@@ -198,7 +198,7 @@ Work:
 	return accumulated, unspentOutputs
 }
 
-func (bc *Blockchain) FindUXTO(address string) []TXOutput {
+func (bc *Blockchain) FindUTXO(address string) []TXOutput {
 	var UTXOs []TXOutput
 	unspentTXs := bc.FindUnspentTransaction(address)
 	for _, tx := range unspentTXs {
