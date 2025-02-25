@@ -3,3 +3,5 @@ bin
 pkg
 *.iml
 *.idea
+wallet.dat
+ozycoin.db

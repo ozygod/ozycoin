@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go.etcd.io/bbolt"
 	"log"
 	"os"
 )
@@ -13,6 +12,8 @@ type CLI struct {
 
 func (cli *CLI) Run() {
 	cli.validateArgs()
+
+	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
 
 	createBlockCmd := flag.NewFlagSet("create", flag.ExitOnError)
 	addressData := createBlockCmd.String("a", "", "your wallet address")
@@ -26,8 +27,14 @@ func (cli *CLI) Run() {
 	balanceData := balanceCmd.String("a", "", "Balance of wallet address")
 
 	printChainCmd := flag.NewFlagSet("print", flag.ExitOnError)
+	listAddressesCmd := flag.NewFlagSet("list", flag.ExitOnError)
 
 	switch os.Args[1] {
+	case "createwallet":
+		err := createWalletCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
 	case "create":
 		err := createBlockCmd.Parse(os.Args[2:])
 		if err != nil {
@@ -48,9 +55,18 @@ func (cli *CLI) Run() {
 		if err != nil {
 			log.Panic(err)
 		}
+	case "list":
+		err := listAddressesCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
 	default:
 		cli.printUsage()
 		os.Exit(1)
+	}
+
+	if createWalletCmd.Parsed() {
+		cli.createWallet()
 	}
 
 	if createBlockCmd.Parsed() {
@@ -79,53 +95,16 @@ func (cli *CLI) Run() {
 	if printChainCmd.Parsed() {
 		cli.printChain()
 	}
-}
-
-func (cli *CLI) createBlockChain(address string) {
-	bc := CreateBlockChain(address)
-	defer func(db *bbolt.DB) {
-		err := db.Close()
-		if err != nil {
-			log.Panic(err)
-		}
-	}(bc.db)
-	fmt.Println("Done!")
-}
-
-func (cli *CLI) send(from, to string, amount int) {
-	bc := NewBlockChain()
-	defer func(db *bbolt.DB) {
-		err := db.Close()
-		if err != nil {
-			log.Panic(err)
-		}
-	}(bc.db)
-
-	tx := NewUTXOTransaction(from, to, amount, bc)
-	bc.MineBlock([]*Transaction{tx})
-	fmt.Println("Paid Successfully!")
-}
-
-func (cli *CLI) getBalance(address string) {
-	bc := NewBlockChain()
-	defer func(db *bbolt.DB) {
-		err := db.Close()
-		if err != nil {
-			log.Panic(err)
-		}
-	}(bc.db)
-
-	UTXOs := bc.FindUTXO(address)
-	balance := 0
-	for _, utxo := range UTXOs {
-		balance += utxo.Value
+	if listAddressesCmd.Parsed() {
+		cli.listAddresses()
 	}
-	fmt.Printf("Balance of '%s': %d\n", address, balance)
 }
 
 const usage = `
 Usage:
   create -a ADDRESS    			  	- create the new blockchain
+  createwallet  	   			  	- create the new wallet address
+  list 	   			  				- list all wallet address
   send -f FROM -t TO -a AMOUNT		- Send AMOUNT of coins from FROM address to TO
   balance -a ADDRESS    			- balance of the address
   print               			  	- print all the blocks of the blockchain
