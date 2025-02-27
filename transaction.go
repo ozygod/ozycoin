@@ -181,7 +181,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 	return true
 }
 
-func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transaction {
+func NewUTXOTransaction(from, to string, amount int, set *UTXOSet) *Transaction {
 	var inputs []TXInput
 	var outputs []TXOutput
 
@@ -191,7 +191,7 @@ func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transactio
 	}
 	wallet := wallets.GetWallet(from)
 	publicKeyHash := HashPubKey(wallet.PublicKey)
-	acc, validOutputs := bc.FindSpendableOutputs(publicKeyHash, amount)
+	acc, validOutputs := set.FindSpendableOutputs(publicKeyHash, amount)
 	if acc < amount {
 		log.Panic("ERROR: Not enough funds")
 	}
@@ -216,7 +216,7 @@ func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transactio
 
 	tx := &Transaction{nil, inputs, outputs}
 	tx.ID = tx.Hash()
-	bc.SignTransaction(tx, wallet.PrivateKey)
+	set.Blockchain.SignTransaction(tx, wallet.PrivateKey)
 	return tx
 }
 
@@ -231,4 +231,31 @@ func NewCoinBaseTX(to, data string) *Transaction {
 	tx.ID = tx.Hash()
 
 	return &tx
+}
+
+type TXOutputs struct {
+	Outputs []TXOutput
+}
+
+func (outs TXOutputs) Serialize() []byte {
+	var buff bytes.Buffer
+
+	enc := gob.NewEncoder(&buff)
+	err := enc.Encode(outs)
+	if err != nil {
+		log.Panic(err)
+	}
+	return buff.Bytes()
+}
+
+func DeserializeOutputs(data []byte) TXOutputs {
+	var outs TXOutputs
+
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	err := dec.Decode(&outs)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return outs
 }

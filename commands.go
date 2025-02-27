@@ -40,6 +40,10 @@ func (cli *CLI) createBlockChain(address string) {
 			log.Panic(err)
 		}
 	}(bc.db)
+
+	set := UTXOSet{bc}
+	set.ReIndex()
+
 	fmt.Println("Done!")
 }
 
@@ -52,6 +56,7 @@ func (cli *CLI) send(from, to string, amount int) {
 	}
 
 	bc := NewBlockChain()
+	set := UTXOSet{bc}
 	defer func(db *bbolt.DB) {
 		err := db.Close()
 		if err != nil {
@@ -59,8 +64,9 @@ func (cli *CLI) send(from, to string, amount int) {
 		}
 	}(bc.db)
 
-	tx := NewUTXOTransaction(from, to, amount, bc)
-	bc.MineBlock([]*Transaction{tx})
+	tx := NewUTXOTransaction(from, to, amount, &set)
+	newBlock := bc.MineBlock([]*Transaction{tx})
+	set.Update(newBlock)
 	fmt.Println("Paid Successfully!")
 }
 
@@ -69,6 +75,7 @@ func (cli *CLI) getBalance(address string) {
 		log.Panic("Address is not valid")
 	}
 	bc := NewBlockChain()
+	set := UTXOSet{bc}
 	defer func(db *bbolt.DB) {
 		err := db.Close()
 		if err != nil {
@@ -77,7 +84,7 @@ func (cli *CLI) getBalance(address string) {
 	}(bc.db)
 
 	publicKeyHash := GetPublicKeyHash(address)
-	UTXOs := bc.FindUTXO(publicKeyHash)
+	UTXOs := set.FindUTXO(publicKeyHash)
 	balance := 0
 	for _, utxo := range UTXOs {
 		balance += utxo.Value

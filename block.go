@@ -38,14 +38,13 @@ func (b *Block) Serialize() []byte {
 }
 
 func (b *Block) HashTransactions() []byte {
-	var txHashes [][]byte
-	var txHash [32]byte
+	var txs [][]byte
 	for _, tx := range b.Transactions {
-		txHashes = append(txHashes, tx.ID)
+		txs = append(txs, tx.Serialize())
 	}
-	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+	mTree := NewMerkleTree(txs)
 
-	return txHash[:]
+	return mTree.root.Data
 }
 
 func DeserializeBlock(data []byte) *Block {
