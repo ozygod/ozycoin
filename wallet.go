@@ -9,7 +9,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"golang.org/x/crypto/ripemd160"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
@@ -120,7 +119,7 @@ func (ws *Wallets) LoadFromFile() error {
 		return err
 	}
 
-	fileContent, err := ioutil.ReadFile(walletFile)
+	fileContent, err := os.ReadFile(walletFile)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -149,7 +148,7 @@ func (ws Wallets) SaveToFile() error {
 		log.Panic(err)
 	}
 
-	err = ioutil.WriteFile(walletFile, content.Bytes(), 0644)
+	err = os.WriteFile(walletFile, content.Bytes(), 0644)
 	if err != nil {
 		log.Panic(err)
 	}
