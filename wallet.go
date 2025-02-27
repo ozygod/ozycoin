@@ -6,11 +6,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/json"
+	"encoding/gob"
 	"fmt"
 	"golang.org/x/crypto/ripemd160"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 )
 
@@ -25,6 +26,12 @@ type Wallet struct {
 
 type Wallets struct {
 	Wallets map[string]*Wallet
+}
+
+func init() {
+	gob.Register(elliptic.P256())
+	gob.Register(elliptic.P384())
+	gob.Register(elliptic.P521()) // 如果您可能使用其他曲线，也需要注册
 }
 
 func NewWallet() *Wallet {
@@ -52,22 +59,6 @@ func (w Wallet) GetAddress() []byte {
 	address := Base58Encode(fullPayload)
 
 	return address
-}
-
-func (w Wallet) MarshalJSON() ([]byte, error) {
-	mapStringAny := map[string]any{
-		"PrivateKey": map[string]any{
-			"D": w.PrivateKey.D,
-			"PublicKey": map[string]any{
-				"X": w.PrivateKey.PublicKey.X,
-				"Y": w.PrivateKey.PublicKey.Y,
-			},
-			"X": w.PrivateKey.X,
-			"Y": w.PrivateKey.Y,
-		},
-		"PublicKey": w.PublicKey,
-	}
-	return json.Marshal(mapStringAny)
 }
 
 func ValidateAddress(address string) bool {
@@ -134,25 +125,35 @@ func (ws *Wallets) LoadFromFile() error {
 		log.Panic(err)
 	}
 
-	err = json.Unmarshal(fileContent, ws)
+	var wallets Wallets
+	gob.Register(elliptic.P256())
+	decoder := gob.NewDecoder(bytes.NewReader(fileContent))
+	err = decoder.Decode(&wallets)
 	if err != nil {
 		log.Panic(err)
 	}
+
+	ws.Wallets = wallets.Wallets
 
 	return nil
 }
 
 func (ws Wallets) SaveToFile() error {
-	jsonData, err := json.Marshal(ws)
+	var content bytes.Buffer
+
+	gob.Register(elliptic.P256())
+
+	encoder := gob.NewEncoder(&content)
+	err := encoder.Encode(ws)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	err = ioutil.WriteFile(walletFile, jsonData, 0644)
+	err = ioutil.WriteFile(walletFile, content.Bytes(), 0644)
 	if err != nil {
 		log.Panic(err)
 	}
-	return nil
+	return err
 }
 
 func (ws *Wallets) CreateWallet() string {
@@ -160,4 +161,95 @@ func (ws *Wallets) CreateWallet() string {
 	address := fmt.Sprintf("%s", wallet.GetAddress())
 	ws.Wallets[address] = wallet
 	return address
+}
+
+// GobEncode 自定义 Wallet 类型的 Gob 序列化方法
+func (w Wallet) GobEncode() ([]byte, error) {
+	curveName := ""
+	switch w.PrivateKey.Curve {
+	case elliptic.P256():
+		curveName = "P256"
+	case elliptic.P384():
+		curveName = "P384"
+	case elliptic.P521():
+		curveName = "P521"
+	default:
+		return nil, fmt.Errorf("unsupported curve type for gob encoding")
+	}
+
+	buf := new(bytes.Buffer)
+	encoder := gob.NewEncoder(buf)
+
+	err := encoder.Encode(curveName) // 序列化曲线名称
+	if err != nil {
+		return nil, err
+	}
+	err = encoder.Encode(w.PrivateKey.D) // 序列化私钥 D
+	if err != nil {
+		return nil, err
+	}
+	err = encoder.Encode(w.PrivateKey.PublicKey.X) // 序列化公钥 X
+	if err != nil {
+		return nil, err
+	}
+	err = encoder.Encode(w.PrivateKey.PublicKey.Y) // 序列化公钥 Y
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// GobDecode 自定义 Wallet 类型的 Gob 反序列化方法
+func (w *Wallet) GobDecode(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+
+	var curveName string
+	err := decoder.Decode(&curveName) // 反序列化曲线名称
+	if err != nil {
+		return err
+	}
+
+	var d *big.Int
+	err = decoder.Decode(&d) // 反序列化私钥 D
+	if err != nil {
+		return err
+	}
+
+	var x *big.Int
+	err = decoder.Decode(&x) // 反序列化公钥 X
+	if err != nil {
+		return err
+	}
+
+	var y *big.Int
+	err = decoder.Decode(&y) // 反序列化公钥 Y
+	if err != nil {
+		return err
+	}
+
+	var curve elliptic.Curve
+	switch curveName {
+	case "P256":
+		curve = elliptic.P256()
+	case "P384":
+		curve = elliptic.P384()
+	case "P521":
+		curve = elliptic.P521()
+	default:
+		return fmt.Errorf("unsupported curve name: %s", curveName)
+	}
+
+	w.PrivateKey = ecdsa.PrivateKey{
+		D: d,
+		PublicKey: ecdsa.PublicKey{
+			Curve: curve,
+			X:     x,
+			Y:     y,
+		},
+	}
+	w.PublicKey = append(w.PrivateKey.PublicKey.X.Bytes(), w.PrivateKey.PublicKey.Y.Bytes()...)
+
+	return nil
 }

@@ -18,7 +18,7 @@ func (set UTXOSet) ReIndex() {
 
 	err := db.Update(func(tx *bbolt.Tx) error {
 		err := tx.DeleteBucket(bucketName)
-		if err != nil {
+		if err != nil && err != bbolt.ErrBucketNotFound {
 			log.Panic(err)
 		}
 		_, err = tx.CreateBucket(bucketName)
