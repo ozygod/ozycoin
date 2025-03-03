@@ -15,8 +15,8 @@ import (
 )
 
 const addressChecksumLen = 4
-const version = byte(0x00)
-const walletFile = "wallet.dat"
+const pkhVersion = byte(0x00)
+const walletFile = "wallet_%s.dat"
 
 type Wallet struct {
 	PrivateKey ecdsa.PrivateKey
@@ -52,7 +52,7 @@ func newKeyPair() (ecdsa.PrivateKey, []byte) {
 func (w Wallet) GetAddress() []byte {
 	pubKeyHash := HashPubKey(w.PublicKey)
 
-	versionedPayload := append([]byte{version}, pubKeyHash...)
+	versionedPayload := append([]byte{pkhVersion}, pubKeyHash...)
 	checksum := checkSum(versionedPayload)
 	fullPayload := append(versionedPayload, checksum...)
 	address := Base58Encode(fullPayload)
@@ -90,15 +90,15 @@ func checkSum(payload []byte) []byte {
 
 func GetPublicKeyHash(address string) []byte {
 	pubKeyHash := Base58Decode([]byte(address))
-	pubKeyHash = pubKeyHash[len([]byte{version}) : len(pubKeyHash)-addressChecksumLen]
+	pubKeyHash = pubKeyHash[len([]byte{pkhVersion}) : len(pubKeyHash)-addressChecksumLen]
 	return pubKeyHash
 }
 
-func NewWallets() (*Wallets, error) {
+func NewWallets(nodeId string) (*Wallets, error) {
 	wallets := Wallets{}
 	wallets.Wallets = make(map[string]*Wallet)
 
-	err := wallets.LoadFromFile()
+	err := wallets.LoadFromFile(nodeId)
 	return &wallets, err
 }
 
@@ -114,12 +114,13 @@ func (ws Wallets) GetWallet(address string) Wallet {
 	return *ws.Wallets[address]
 }
 
-func (ws *Wallets) LoadFromFile() error {
-	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
+func (ws *Wallets) LoadFromFile(nodeId string) error {
+	path := fmt.Sprintf(walletFile, nodeId)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return err
 	}
 
-	fileContent, err := os.ReadFile(walletFile)
+	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -137,7 +138,8 @@ func (ws *Wallets) LoadFromFile() error {
 	return nil
 }
 
-func (ws Wallets) SaveToFile() error {
+func (ws Wallets) SaveToFile(nodeId string) error {
+	path := fmt.Sprintf(walletFile, nodeId)
 	var content bytes.Buffer
 
 	gob.Register(elliptic.P256())
@@ -148,7 +150,7 @@ func (ws Wallets) SaveToFile() error {
 		log.Panic(err)
 	}
 
-	err = os.WriteFile(walletFile, content.Bytes(), 0644)
+	err = os.WriteFile(path, content.Bytes(), 0644)
 	if err != nil {
 		log.Panic(err)
 	}

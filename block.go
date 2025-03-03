@@ -16,6 +16,7 @@ type Block struct {
 	Root                []byte
 	Transactions        []*Transaction
 	Nonce               int
+	Height              int
 }
 
 func (b *Block) SetHash() {

@@ -71,7 +71,7 @@ func NewTXOutput(value int, address string) *TXOutput {
 
 func (out *TXOutput) Lock(address []byte) {
 	pubKeyHash := Base58Decode(address)
-	pubKeyHash = pubKeyHash[len([]byte{version}) : len(pubKeyHash)-addressChecksumLen]
+	pubKeyHash = pubKeyHash[len([]byte{pkhVersion}) : len(pubKeyHash)-addressChecksumLen]
 	out.PubKeyHash = pubKeyHash
 }
 
@@ -105,6 +105,17 @@ func (tx *Transaction) Serialize() []byte {
 	}
 
 	return encoded.Bytes()
+}
+
+func DeserializeTransaction(data []byte) Transaction {
+	var tx Transaction
+
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	err := dec.Decode(&tx)
+	if err != nil {
+		log.Panic(err)
+	}
+	return tx
 }
 
 func (tx *Transaction) Sign(privateKey ecdsa.PrivateKey, prevTXs map[string]Transaction) {
@@ -181,11 +192,11 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 	return true
 }
 
-func NewUTXOTransaction(from, to string, amount int, set *UTXOSet) *Transaction {
+func NewUTXOTransaction(nodeId, from, to string, amount int, set *UTXOSet) *Transaction {
 	var inputs []TXInput
 	var outputs []TXOutput
 
-	wallets, err := NewWallets()
+	wallets, err := NewWallets(nodeId)
 	if err != nil {
 		log.Panic(err)
 	}

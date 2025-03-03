@@ -99,9 +99,9 @@ func (set UTXOSet) Update(block *Block) {
 
 	err := db.Update(func(tx *bbolt.Tx) error {
 		b := tx.Bucket([]byte(utxoBucket))
-		for _, tx := range block.Transactions {
-			if tx.IsCoinbase() == false {
-				for _, in := range tx.Vin {
+		for _, btx := range block.Transactions {
+			if btx.IsCoinbase() == false {
+				for _, in := range btx.Vin {
 					newOutputs := TXOutputs{}
 					outsBytes := b.Get(in.Txid)
 					outs := DeserializeOutputs(outsBytes)
@@ -126,10 +126,10 @@ func (set UTXOSet) Update(block *Block) {
 			}
 
 			newOutputs := TXOutputs{}
-			for _, out := range tx.Vout {
+			for _, out := range btx.Vout {
 				newOutputs.Outputs = append(newOutputs.Outputs, out)
 			}
-			err := b.Put(tx.ID, newOutputs.Serialize())
+			err := b.Put(btx.ID, newOutputs.Serialize())
 			if err != nil {
 				log.Panic(err)
 			}
